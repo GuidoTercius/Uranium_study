@@ -11,9 +11,9 @@ u3o8 = pd.read_html(Source,decimal='.')[0]
 
 u3o8 = u3o8.rename(columns={'Unnamed: 0':'Data', 'Uranium Spot Price':'Spot Price','Long-term Uranium Price':'Term Price'}).reset_index(drop=True).set_index('Data')
 
-u3o8['Spread'] = u3o8['Term Price']-u3o8['Spot Price']
+u3o8['Spread'] = u3o8['Spot Price']-u3o8['Term Price']
 
-print(u3o8.head(150))
+# print(u3o8.head(150))
 
 # u3o8 = u3o8[u3o8.index>="2020-01-01"] ### Filtrando momento pos pandemia
 

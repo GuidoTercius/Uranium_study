@@ -86,37 +86,40 @@ def chartlayers(Largurax = 3 ,Alturay = 1 , tamanhox = 16 , tamanhoy = 9 , dataf
         plt.savefig(arquivoname)
     plt.show()
 
-def chart(dataframcomcorrel = np.nan, maxy = 1,miny = -1,arquivoname = ' ', Titulo = ''):
+def chart(dataframcomcorrel = np.nan, maxy = 1,miny = -1,arquivoname = ' ', Titulo = '',linha=0,xlabeltext='Date',ylabeltext='Rolling Correlation',show=True):
     
 
     dataframcomcorrel.plot()
-    plt.axhline(0, color='black', linestyle='--', linewidth=1)
+    plt.axhline(linha, color='black', linestyle='--', linewidth=1)
     plt.title(Titulo)
     plt.ylim(miny, maxy)
     plt.legend()
-    plt.xlabel('Date')
-    plt.ylabel('Rolling Correlation')
+    plt.xlabel(xlabeltext)
+    plt.ylabel(ylabeltext)
 
     plt.tight_layout()
     if arquivoname == ' ':
         pass
     else:   
         plt.savefig(arquivoname)
-    plt.show()
+    if show == True:
+        plt.show()
+    else:
+        pass        
 
 def retorno(ativos = [''], começo = dt.datetime.today() - dt.timedelta(360*21), fim =dt.datetime.today(), dias_var=1,tipo = 'diario'):
+    
     # Importar historico dos ativos
-
     historico_preços = yf.download(tickers= ativos , start  = começo ,end = fim)['Adj Close'].dropna()
 
     if tipo == 'diario':
-        h_c = (historico_preços/historico_preços.shift(dias_var)-1).dropna()
+        retorno = (historico_preços/historico_preços.shift(dias_var)-1).dropna()
     elif tipo == 'acumulado':
-        h_c = (historico_preços/historico_preços.iloc[0]-1).dropna()  
+        retorno = (historico_preços/historico_preços.iloc[0]-1).dropna()  
     else:
         f'Incluir tipo de retrono ""{tipo}""'        
-    # print(h_c)      
-    return h_c
+    # print(retorno)      
+    return retorno
 
 def getcdi():
     url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv"
@@ -134,11 +137,54 @@ def Beta(df= np.nan,ativo1='',ativo2=''):
     beta_result =(df[ativo1].cov(df[ativo2]))/df[ativo2].var()
     return beta_result
 
+def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=0.5,pontamain = 'C', pontahedge = 'V',exposição=1,stopgain = 0.05,stoploss=-0.03,começo = "2024-05-08 00:00:00", fim =dt.datetime.today(), dias_var=1,tipo = 'acumulado'):
+    
+    começo = pd.to_datetime(começo).strftime('%Y-%m-%d')
+    fim = pd.to_datetime(fim).strftime('%Y-%m-%d')
+    # Importar historico dos ativos
+    historico_preços = yf.download(tickers= [ativomain,ativohedge] , start  = começo ,end = fim)['Adj Close'].dropna()
 
+
+    if tipo == 'diario':
+        retorno = (historico_preços/historico_preços.shift(dias_var)-1).dropna()
+    elif tipo == 'acumulado':
+        retorno = (historico_preços/historico_preços.iloc[0]-1).dropna()  
+    else:
+        f'Incluir tipo de retrono ""{tipo}""'        
+
+    ### Definindo a ponta do Hedge
+    if pontamain.upper() == 'C' or pontamain.upper() == 'COMPRA':
+        pontamain = 1
+    elif pontamain.upper() == 'V' or pontamain.upper() == 'VENDA':
+        pontamain = -1        
+    else:
+        pontamain = 1
+    if pontahedge.upper() == 'C' or pontahedge.upper() == 'COMPRA':
+        pontahedge = 1
+    elif pontahedge.upper() == 'V' or pontahedge.upper() == 'VENDA':
+        pontahedge = -1        
+    else:
+        pontahedge = -1
+
+    
+    retorno[ativohedge] = retorno[ativohedge] * beta * pontahedge
+    retorno[ativomain] = retorno[ativomain] * beta * pontamain
+    retorno['Estratégia'] = (retorno[ativohedge]+retorno[ativomain])*exposição
+    try:
+        try:
+            retorno[f'{ativohedge} trigger end'] = (retorno[ativohedge] >= stopgain)         
+            retorno = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger end']].index[0]])[[ativomain,ativohedge,'Estratégia']] ### retorno[(index < Data do primeiro True)]
+        except :
+            retorno[f'{ativohedge} trigger end'] = (retorno[ativohedge] <= stoploss)        
+            retorno = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger end']].index[0]])[[ativomain,ativohedge,'Estratégia']]
+    except:
+        retorno  
+    
+    return retorno
 
 ############################################################ EXERCICIO 1 ############################################################
 ############################################################  CORRELAÇÃO ############################################################
-'''Correlação em janelas'''
+# '''Correlação em janelas'''
 
 correlation_roll = pd.DataFrame() ### Criando DF
 list_correl = ['NVDA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK'] ### Lista dos ativos para analisar correlção contra 'URA' ; Robo Global Robotics and Automation Index ETF (ROBO) , Global X Artificial Intelligence & Technology ETF (AIQ) ; iShares Expanded Tech-Software Sector ETF (IGV)
@@ -206,5 +252,45 @@ plt.show()
 ############################################################      EXERCICIO 3     ############################################################
 ############################################################    Time de entrada   ############################################################
 
-list_retorno= ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
-returns = retorno(ativos= list_retorno,dias_var=5, começo = '2024-06-01', fim = dt.datetime.today() ,tipo='diario') #analisar os retornos a cada 5 dias
+### Inputs importantes para o back teste
+
+diasvar =1 ### retorno movel em quantas dias
+começo = '2020-01-01' ### começo da busca por momentos de entrada
+tiporetorno ='diario' ### Tipo de retorno ; na formula de retorno ele so aborda o retorno em janelas moveis se for diario
+
+list_retorno = ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] ### ativos no geral ; usado mais tarde para o Beta
+list_flag = ['ROBO','AIQ','XLK'] ### ativos que irão disparar trigger do Hedge e serão usados como hedges
+
+returns = retorno(ativos = list_retorno,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno)
+flag = retorno(ativos = list_flag,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno) # retorno dos ativos triggers
+
+flagtrigger =pd.DataFrame() ### DataFrame para os ativos/datas que serão triggados
+
+for ativo in flag:
+    flag[f'Trigger {ativo}'] = flag[ativo]>=0.05 ### Colunas pra trigar ponta de entrada do Hedge 
+
+for name in flag.columns:
+    if name.startswith('Trigger'):
+        nametrigger = name.split(" ")[-1] # Nome das colunas original
+        flagtrigger[f'{nametrigger}']=flag[f'{name}'] # nome dos ativos, mas com as flags de entrada nas linhas (True and False)
+    else:
+        pass
+    
+flagtrigger  = flagtrigger[flagtrigger.any(axis=1)]    # Filtrando os Trues das colunas triggers e pegando só as datas (index) ; usar futuramente para serem os pontos de entrada
+datastrigger = {}
+for ativo in list_flag:
+    datastrigger[ativo] = list(flagtrigger[flagtrigger[ativo] == True].index) ### keys and values para triggar back test ; nome de um ativo corresponde a x datas
+
+for chave in datastrigger: ### para ativo no dict de ativo: datas
+    for valor in datastrigger[chave]: ### para datas de trigger do determinado ativo
+        valor = pd.to_datetime(valor).strftime('%Y-%m-%d') ### formatando a data
+        chart(backtest(ativomain = 'URA',ativohedge = chave ,
+            beta= Beta(df = returns,ativo1='URA',ativo2=chave), ### usando o beta para ponderar a exposição ao ativo hedge
+            pontamain = 'C', pontahedge = 'V',                  ### Ponta do Hedge
+            exposição=1,stopgain=0.03,stoploss= -0.03 ,começo = valor, ### atenção para o stop gain e loss, eles que são os trigerres para sair da posição
+            fim =dt.datetime.today(), tipo = 'acumulado'),
+            maxy=0.035,miny=-0.035,linha=0,Titulo=f'Buy_URA x short_{chave}_{valor}',arquivoname=f'Buy_URA x short_{chave}_{valor}',show=False)
+
+# chart(flag,maxy=0.25,miny=-0.1,linha=0.05,ylabeltext='Retorno a cada 5 dias',Titulo='Retorno em janela móvel de 5 dias') #plotando retornos acumulados de 5 dias    
+
+

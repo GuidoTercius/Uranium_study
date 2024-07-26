@@ -1,24 +1,29 @@
 '''
 Contexto:
-Tese de Urânio que consiste em aproveitar da assimetria de oferta e demanda. 
-No meio da realização da tese (comprado em urânio), aparece uma variável que não era levada em conta:
-IA. Com intuito de mitigar a tese a um possível risco de expectativas/realidade com as empresas de IA impactando na demanda enérgica. 
-Ideia hedge estratégico as IA de forma que evite exposição short IA constante.
+Tese bull Urânio explorando assimetria entre oferta e demanda, descarbonização dos países e desetigmatização com energia nuclear. 
+Percebendo uma forte movimento das commodities energéticas sendo puxado pelo setor de Tech e IA, é possível associar um risco indesejado a tese de Urânio.
+Com intuito de mitigar esse risco, surge a ideia de se hedgear estratégicamente, de forma que evite um exposição short constante as Techs e IAs.
 
 Cálculos e estudos 
-1- Correlação empresas de IA com empresas do mercado de urânio. Exemplo simples: URA x NVDIA 
-2- beta entre os ativos 
-3- tempo de entrada. Exemplo: pós alta de 15% do valor da NVDIA em 1 a 5 dias
 
-Execução
-1- Ao apitar o tempo de entrada (3° estudo) entrar short em NVDA com tamanho proporcional ao beta com URA. mitigando perdas de realização.
+1- Correlação empresas de IA e Tech com empresas do mercado de urânio. Exemplo simples: URA x [XLK,NVDIA] e etc. 
+    Isso nos retornar, quantitativamente, a relação entre o preço dos setores no mercado.
+
+2- beta entre os ativos 
+    Retornara a sensibilidade que o mercado de Urânio tem a Techs&IAs
+
+3- tempo de entrada. Exemplo: pós alta de 15% do valor de XLK em 1 a 5 dias
+    Indicador de para onde olhar
+
+4- Ao apitar o tempo de entrada (3° estudo) entrar short em XLK com tamanho proporcional ao beta com URA (Rodar back test).
 
 '''
 
-from matplotlib import pyplot as plt 
-from matplotlib import dates as mpl_date
+### Bibliotecas
 
-plt.style.use('Solarize_Light2') # escolher estilo de gráfico # 'Solarize_Light2' , 'bmh' , dark_background 
+from matplotlib import pyplot as plt 
+
+plt.style.use('Solarize_Light2') # escolher estilo de gráfico ; 'Solarize_Light2' , 'bmh' , dark_background 
 
 from io import StringIO
 import yfinance as yf
@@ -41,15 +46,14 @@ def rolling_correlation(ativo1='URA' , ativo2 = 'NVDA', começo = dt.datetime.to
 
     historico_preços = yf.download(tickers= ativos , start  = começo ,end = fim)['Adj Close'].dropna()
 
-    h_c = (historico_preços/historico_preços.shift(dias_var)-1).dropna() ### Retorno diario
-    CM = h_c[ativo1].rolling(janela_movel).corr(h_c[ativo2]) # Correlação Movel
+    h_pct = (historico_preços/historico_preços.shift(dias_var)-1).dropna() ### historico percentual change
+    CM = h_pct[ativo1].rolling(janela_movel).corr(h_pct[ativo2]) # Correlação Movel
     return CM
 
-def chartlayers(Largurax = 3 ,Alturay = 1 , tamanhox = 16 , tamanhoy = 9 , dataframcomcorrel = np.nan, maxy = 1,miny = -1,arquivoname = ' '
-          , Titulo = ''):
+def chartlayers(layersy = 3 ,layersx = 1 , tamanhox = 16 , tamanhoy = 9 , dataframcomcorrel = np.nan, maxy = 1,miny = -1,arquivoname = ' ', Titulo = ''):
 
 # Criar subplots
-    fig, axs = plt.subplots(Largurax, Alturay, figsize=(tamanhox, tamanhoy))
+    fig, axs = plt.subplots(layersy, layersx, figsize=(tamanhox, tamanhoy))
 
     # Primeiro período: Desde o início até 2015
     axs[0].plot(dataframcomcorrel[dataframcomcorrel.index <= '2015-12-31'],label=dataframcomcorrel.columns)
@@ -102,6 +106,7 @@ def chart(dataframcomcorrel = np.nan, maxy = 1,miny = -1,arquivoname = ' ', Titu
         pass
     else:   
         plt.savefig(arquivoname)
+        plt.close()
     if show == True:
         plt.show()
     else:
@@ -124,7 +129,6 @@ def retorno(ativos = [''], começo = dt.datetime.today() - dt.timedelta(360*21),
 def getcdi():
     url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv"
     response = requests.get(url,)
-
     data = StringIO(response.text)
 
     cdi = pd.read_csv(data, sep=';')  
@@ -137,7 +141,7 @@ def Beta(df= np.nan,ativo1='',ativo2=''):
     beta_result =(df[ativo1].cov(df[ativo2]))/df[ativo2].var()
     return beta_result
 
-def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=0.5,pontamain = 'C', pontahedge = 'V',exposição=1,stopgain = 0.05,stoploss=-0.03,começo = "2024-05-08 00:00:00", fim =dt.datetime.today(), dias_var=1,tipo = 'acumulado'):
+def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=1,pontamain = 'C', pontahedge = 'V',exposição=1,stopgain = 0.05,stoploss=-0.03,começo = "2024-05-08 00:00:00", fim =dt.datetime.today(), dias_var=1,tipo = 'acumulado'):
     
     começo = pd.to_datetime(começo).strftime('%Y-%m-%d')
     fim = pd.to_datetime(fim).strftime('%Y-%m-%d')
@@ -167,46 +171,58 @@ def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=0.5,pontamain = 'C', pon
         pontahedge = -1
 
     
-    retorno[ativohedge] = retorno[ativohedge] * beta * pontahedge
-    retorno[ativomain] = retorno[ativomain] * beta * pontamain
-    retorno['Estratégia'] = (retorno[ativohedge]+retorno[ativomain])*exposição
+    retorno[ativohedge] = retorno[ativohedge] * beta * pontahedge ### Direção e Ponderando o Hedge
+    retorno[ativomain] = retorno[ativomain] * beta * pontamain  ### Direção e Ponderando o main - URA
+    retorno['Estratégia'] = (retorno[ativohedge]+retorno[ativomain])*exposição ### o acumulado do ativo principal e hedge
+
+    retorno[f'{ativohedge} trigger loss'] = (retorno[ativohedge] <= stoploss).shift(1, fill_value=False) ### Coluna com True quando bater o stop,
+    retorno[f'{ativohedge} trigger gain'] = (retorno[ativohedge] >= stopgain).shift(1, fill_value=False) ###  shift 1 para stopar no dia do stop e não um dia antes.
+    
     try:
-        try:
-            retorno[f'{ativohedge} trigger end'] = (retorno[ativohedge] >= stopgain)         
-            retorno = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger end']].index[0]])[[ativomain,ativohedge,'Estratégia']] ### retorno[(index < Data do primeiro True)]
-        except :
-            retorno[f'{ativohedge} trigger end'] = (retorno[ativohedge] <= stoploss)        
-            retorno = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger end']].index[0]])[[ativomain,ativohedge,'Estratégia']]
-    except:
-        retorno  
+        retorno_gain = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger gain']].index[0]])[[ativomain,ativohedge,'Estratégia']] ### retorno[(index < Data do primeiro True)]
+    except :
+        retorno_gain = retorno
+    try:
+        retorno_loss = (retorno[retorno.index < retorno[retorno[f'{ativohedge} trigger loss']].index[0]])[[ativomain,ativohedge,'Estratégia']] ### retorno[(index < Data do primeiro True)]
+    except :
+        retorno_loss = retorno
+
+    if len(retorno_gain) > len(retorno_loss):
+        retorno = retorno_loss
+    elif len(retorno_gain) < len(retorno_loss):
+        retorno = retorno_gain
+    else:
+        retorno[[ativomain,ativohedge,'Estratégia']]
     
     return retorno
-
+# print(backtest(ativohedge='ARKG',começo='2020-03-25',stopgain=0.03,stoploss=-0.03).head(15))
+# sys.exit()
 ############################################################ EXERCICIO 1 ############################################################
 ############################################################  CORRELAÇÃO ############################################################
+
 # '''Correlação em janelas'''
 
-correlation_roll = pd.DataFrame() ### Criando DF
-list_correl = ['NVDA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK'] ### Lista dos ativos para analisar correlção contra 'URA' ; Robo Global Robotics and Automation Index ETF (ROBO) , Global X Artificial Intelligence & Technology ETF (AIQ) ; iShares Expanded Tech-Software Sector ETF (IGV)
+# correlation_roll = pd.DataFrame() ### Criando DF
+# list_correl = ['NVDA','ARKG' , 'VGT' , 'AIQ', 'IGV','XLK'] ### Lista dos ativos para analisar correlção contra 'URA' ; Robo Global Robotics and Automation Index ETF (ROBO) , Global X Artificial Intelligence & Technology ETF (AIQ) ; iShares Expanded Tech-Software Sector ETF (IGV)
 
-for ativo in list_correl: ### Criando Looping que pega cada ativo da lista e calcula a correlação móvel com a função criada anteriormente
-    correlation_roll[f'URA_{ativo}'] = rolling_correlation(ativo1='URA' , ativo2 = ativo, começo = dt.datetime.today() - dt.timedelta(360*24), fim =dt.datetime.today(),dias_var=1,janela_movel=50)
+# for ativo in list_correl: ### Criando Looping que pega cada ativo da lista e calcula a correlação móvel com a função criada anteriormente
+#     correlation_roll[f'URA_{ativo}'] = rolling_correlation(ativo1='URA' , ativo2 = ativo, começo = dt.datetime.today() - dt.timedelta(360*24), fim =dt.datetime.today(),dias_var=1,janela_movel=50)
 
-chartlayers(Largurax = 3 ,Alturay = 1 , tamanhox = 16 , tamanhoy = 9 , 
-      dataframcomcorrel = correlation_roll,
-       maxy = 1,miny = -1,arquivoname= f'Correlação em Janelas móveis', Titulo= f'URAxIA Correlação (Janela móvel de 50 dias)')
+# chartlayers(layersy = 3 ,layersx = 1 , tamanhox = 16 , tamanhoy = 9 , 
+#       dataframcomcorrel = correlation_roll,
+#        maxy = 1,miny = -1,arquivoname= f'Correlação em Janelas móveis', Titulo= f'URAxIA Correlação (Janela móvel de 50 dias)')
 
-'''Correlação Historica Heatmap'''
+# '''Correlação Historica Heatmap'''
 
-list_correl2 = ['NLR','URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
-cr = retorno(ativos = list_correl2,         tipo = 'diario').corr()
-sns.heatmap(cr ,cmap="Reds",annot=True) #Pastel1 & 2 RdGy Greys
-plt.title('Correlação Histórica')
-plt.tight_layout()
-plt.savefig('Correlação Histórica')
-plt.show()
+# list_correl2 = ['NLR','URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
+# cr = retorno(ativos = list_correl2,         tipo = 'diario').corr()
+# sns.heatmap(cr ,cmap="Reds",annot=True) #Pastel1 & 2 RdGy Greys
+# plt.title('Correlação Histórica')
+# plt.tight_layout()
+# plt.savefig('Correlação Histórica')
+# plt.show()
 
-## NVDA mostrou mais momentos de descorrelção nas janelas móveis e no geral (0.39 NLR e 0.41), coerente por não ser um ETF
+## NVDA mostrou mais momentos de descorrelção nas janelas móveis e no geral (0.39 NLR e 0.41), coerente por não ser um ETF e ter variações especificas da própria empresa. Vale ressalatar que não chega a ser correlação baixa
 ## Robo Global Robotics and Automation Index ETF (ROBO): Demonstrou a maior correlação entre todos (0.59 com URA e 0.64 com NLR) e menor período de descorrelação em 2017-2018 , 
 ## Global X Artificial Intelligence & Technology ETF (AIQ): Apresentou correlação levemente mais fraca do que a do ROBO (0.54), porém parece ser o ativo mais condizente para a estratégia por ser de IA
 ## URA X NLR o NLR se mostra mais correlacionado com os ativos de tech e IA que o URA ; Deve ocorrer pela distribuição mais concentrada em emrpesas de enrgia 
@@ -216,33 +232,33 @@ plt.show()
 ############################################################ EXERCICIO 2 ############################################################
 ############################################################    Beta     ############################################################
 
-Betas = {}
+# Betas = {}
 
-### Retornos
+# ### Retornos
 
-list_retorno= ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
-returns = retorno(ativos= list_retorno,dias_var=1, começo = '2024-06-01', fim = dt.datetime.today() ,tipo='diario')
+# lista_retorno= ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
+# returns = retorno(ativos= lista_retorno,dias_var=1, começo = '2024-06-01', fim = dt.datetime.today() ,tipo='diario')
 
-for ativo in list_retorno:
-    Betas[f'{ativo}'] = Beta(df = returns,ativo1='URA',ativo2=ativo)
+# for ativo in lista_retorno:
+#     Betas[f'{ativo}'] = Beta(df = returns,ativo1='URA',ativo2=ativo)
 
-Betas = dict(sorted(Betas.items(), key=lambda item: item[1])) #ordenando
-colunas = list(Betas.keys())                                  #eixo x 
-valores = list(Betas.values())                                #eixo y
+# Betas = dict(sorted(Betas.items(), key=lambda item: item[1])) #ordenando
+# colunas = list(Betas.keys())                                  #eixo x 
+# valores = list(Betas.values())                                #eixo y
 
-### Plotando
+# ### Plotando
 
-bars = plt.bar(colunas,valores)
-plt.title('Beta URA x IA & Techs')
-plt.tick_params(axis='x', colors='black')
-plt.tick_params(axis='y', colors='black')
-for bar in bars:
-    yval = bar.get_height()
-    plt.text(bar.get_x() + bar.get_width()/2, yval, round(yval, 2), ha='center', va='bottom')
-plt.tight_layout()
-plt.savefig('Beta URA x IA & Techs')    
+# bars = plt.bar(colunas,valores)
+# plt.title('Beta URA x IA & Techs')
+# plt.tick_params(axis='x', colors='black')
+# plt.tick_params(axis='y', colors='black')
+# for bar in bars:
+#     yval = bar.get_height()
+#     plt.text(bar.get_x() + bar.get_width()/2, yval, round(yval, 2), ha='center', va='bottom')
+# plt.tight_layout()
+# plt.savefig('Beta URA x IA & Techs')    
 
-plt.show()
+# plt.show()
 
 ### Betas: URA tem sensibilidade muito próxima de 1 para os ETFs ROBO (1.16) e AIQ (0.97) apontando para uma similiaridade na grandeza de seus movimetnos. 
 ### Para os outros ETFs o URA tende a se mexer mais passivamente a eles, faz sentindo visto a volatilidade dos ativos de IA e Tech tem tido recentemente.
@@ -254,20 +270,22 @@ plt.show()
 
 ### Inputs importantes para o back teste
 
-diasvar =1 ### retorno movel em quantas dias
-começo = '2020-01-01' ### começo da busca por momentos de entrada
-tiporetorno ='diario' ### Tipo de retorno ; na formula de retorno ele so aborda o retorno em janelas moveis se for diario
+começo = '2023-01-01'       ### começo da busca por momentos de entrada
+tiporetorno ='diario'       ### Tipo de retorno ; na formula de retorno ele so aborda o retorno em janelas moveis se for diario
+diasvar = 5                 ### retorno móvel em quantas dias
+diasvarbeta = 1             ### o retorno móvel do Beta deve ser diferente, pois acompanharemos o retorno depois de entrar no trade diariamente.
+retorno_trigger = 10/100    ### retorno que ativara o trigger para entrar no hedge de Tech ou IA
 
 list_retorno = ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] ### ativos no geral ; usado mais tarde para o Beta
-list_flag = ['ROBO','AIQ','XLK'] ### ativos que irão disparar trigger do Hedge e serão usados como hedges
+list_flag = ['ROBO','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK']#,'NVDA'] ### ativos que irão disparar trigger do Hedge e serão usados como hedges
 
-returns = retorno(ativos = list_retorno,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno)
+returns = retorno(ativos = list_retorno,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno) ### Retorno para Beta
 flag = retorno(ativos = list_flag,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno) # retorno dos ativos triggers
 
 flagtrigger =pd.DataFrame() ### DataFrame para os ativos/datas que serão triggados
 
 for ativo in flag:
-    flag[f'Trigger {ativo}'] = flag[ativo]>=0.05 ### Colunas pra trigar ponta de entrada do Hedge 
+    flag[f'Trigger {ativo}'] = flag[ativo]>= retorno_trigger ### Colunas pra trigar ponta de entrada do Hedge 
 
 for name in flag.columns:
     if name.startswith('Trigger'):
@@ -284,13 +302,29 @@ for ativo in list_flag:
 for chave in datastrigger: ### para ativo no dict de ativo: datas
     for valor in datastrigger[chave]: ### para datas de trigger do determinado ativo
         valor = pd.to_datetime(valor).strftime('%Y-%m-%d') ### formatando a data
-        chart(backtest(ativomain = 'URA',ativohedge = chave ,
+
+        chart(
+            
+            backtest(ativomain = 'URA',ativohedge = chave ,
             beta= Beta(df = returns,ativo1='URA',ativo2=chave), ### usando o beta para ponderar a exposição ao ativo hedge
             pontamain = 'C', pontahedge = 'V',                  ### Ponta do Hedge
             exposição=1,stopgain=0.03,stoploss= -0.03 ,começo = valor, ### atenção para o stop gain e loss, eles que são os trigerres para sair da posição
-            fim =dt.datetime.today(), tipo = 'acumulado'),
-            maxy=0.035,miny=-0.035,linha=0,Titulo=f'Buy_URA x short_{chave}_{valor}',arquivoname=f'Buy_URA x short_{chave}_{valor}',show=False)
+            fim =dt.datetime.today(), tipo = 'acumulado')
+            
+            ,maxy=0.05,miny=-0.05,linha=0,Titulo=f'Buy_URA x short_{chave}_{valor}',arquivoname=f'Buy_URA x short_{chave}_{valor}',show=False)
+        
+        ### Para stopar/rodar livre o código descomente/comente a parte a seguir: 
+        stop_looping = input('Type S for stop de Looping:')
+        print(input,'\n')
+        if stop_looping.upper() == 'S':
+            sys.exit()
+        else:
+            pass
 
-# chart(flag,maxy=0.25,miny=-0.1,linha=0.05,ylabeltext='Retorno a cada 5 dias',Titulo='Retorno em janela móvel de 5 dias') #plotando retornos acumulados de 5 dias    
+### Com o trigger de alta de 10% muitas vezes entramos no meio de uma bull trend dos ativos de techs e IA que tiveram grandes rallys nos ultimos 4 anos.
+### Futuramente adicionar o trigger por alguma razão da volatilidade do ativohedge
+        
+# 
+# OBS       chart(flag,maxy=0.25,miny=-0.1,linha=0.05,ylabeltext='Retorno a cada 5 dias',Titulo='Retorno em janela móvel de 5 dias') #plotando retornos acumulados de 5 dias    
 
 

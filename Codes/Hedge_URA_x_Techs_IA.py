@@ -200,27 +200,27 @@ def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=1,pontamain = 'C', ponta
 ############################################################ EXERCICIO 1 ############################################################
 ############################################################  CORRELAÇÃO ############################################################
 
-# '''Correlação em janelas'''
+'''Correlação em janelas'''
 
-# correlation_roll = pd.DataFrame() ### Criando DF
-# list_correl = ['NVDA','ARKG' , 'VGT' , 'AIQ', 'IGV','XLK'] ### Lista dos ativos para analisar correlção contra 'URA' ; Robo Global Robotics and Automation Index ETF (ROBO) , Global X Artificial Intelligence & Technology ETF (AIQ) ; iShares Expanded Tech-Software Sector ETF (IGV)
+correlation_roll = pd.DataFrame() ### Criando DF
+list_correl = ['NVDA','ARKG' , 'VGT' , 'AIQ', 'IGV','XLK'] ### Lista dos ativos para analisar correlção contra 'URA' ; Robo Global Robotics and Automation Index ETF (ROBO) , Global X Artificial Intelligence & Technology ETF (AIQ) ; iShares Expanded Tech-Software Sector ETF (IGV)
 
-# for ativo in list_correl: ### Criando Looping que pega cada ativo da lista e calcula a correlação móvel com a função criada anteriormente
-#     correlation_roll[f'URA_{ativo}'] = rolling_correlation(ativo1='URA' , ativo2 = ativo, começo = dt.datetime.today() - dt.timedelta(360*24), fim =dt.datetime.today(),dias_var=1,janela_movel=50)
+for ativo in list_correl: ### Criando Looping que pega cada ativo da lista e calcula a correlação móvel com a função criada anteriormente
+    correlation_roll[f'URA_{ativo}'] = rolling_correlation(ativo1='URA' , ativo2 = ativo, começo = dt.datetime.today() - dt.timedelta(360*24), fim =dt.datetime.today(),dias_var=1,janela_movel=50)
 
-# chartlayers(layersy = 3 ,layersx = 1 , tamanhox = 16 , tamanhoy = 9 , 
-#       dataframcomcorrel = correlation_roll,
-#        maxy = 1,miny = -1,arquivoname= f'Correlação em Janelas móveis', Titulo= f'URAxIA Correlação (Janela móvel de 50 dias)')
+chartlayers(layersy = 3 ,layersx = 1 , tamanhox = 16 , tamanhoy = 9 , 
+      dataframcomcorrel = correlation_roll,
+       maxy = 1,miny = -1,arquivoname= f'Correlação em Janelas móveis', Titulo= f'URAxIA Correlação (Janela móvel de 50 dias)')
 
-# '''Correlação Historica Heatmap'''
+'''Correlação Historica Heatmap'''
 
-# list_correl2 = ['NLR','URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
-# cr = retorno(ativos = list_correl2,         tipo = 'diario').corr()
-# sns.heatmap(cr ,cmap="Reds",annot=True) #Pastel1 & 2 RdGy Greys
-# plt.title('Correlação Histórica')
-# plt.tight_layout()
-# plt.savefig('Correlação Histórica')
-# plt.show()
+list_correl2 = ['NLR','URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
+cr = retorno(ativos = list_correl2,         tipo = 'diario').corr()
+sns.heatmap(cr ,cmap="Reds",annot=True) #Pastel1 & 2 RdGy Greys
+plt.title('Correlação Histórica')
+plt.tight_layout()
+plt.savefig('Correlação Histórica')
+plt.show()
 
 ## NVDA mostrou mais momentos de descorrelção nas janelas móveis e no geral (0.39 NLR e 0.41), coerente por não ser um ETF e ter variações especificas da própria empresa. Vale ressalatar que não chega a ser correlação baixa
 ## Robo Global Robotics and Automation Index ETF (ROBO): Demonstrou a maior correlação entre todos (0.59 com URA e 0.64 com NLR) e menor período de descorrelação em 2017-2018 , 
@@ -232,33 +232,33 @@ def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=1,pontamain = 'C', ponta
 ############################################################ EXERCICIO 2 ############################################################
 ############################################################    Beta     ############################################################
 
-# Betas = {}
+Betas = {}
 
-# ### Retornos
+### Retornos
 
-# lista_retorno= ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
-# returns = retorno(ativos= lista_retorno,dias_var=1, começo = '2024-06-01', fim = dt.datetime.today() ,tipo='diario')
+lista_retorno= ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] 
+returns = retorno(ativos= lista_retorno,dias_var=1, começo = '2024-06-01', fim = dt.datetime.today() ,tipo='diario')
 
-# for ativo in lista_retorno:
-#     Betas[f'{ativo}'] = Beta(df = returns,ativo1='URA',ativo2=ativo)
+for ativo in lista_retorno:
+    Betas[f'{ativo}'] = Beta(df = returns,ativo1='URA',ativo2=ativo)
 
-# Betas = dict(sorted(Betas.items(), key=lambda item: item[1])) #ordenando
-# colunas = list(Betas.keys())                                  #eixo x 
-# valores = list(Betas.values())                                #eixo y
+Betas = dict(sorted(Betas.items(), key=lambda item: item[1])) #ordenando
+colunas = list(Betas.keys())                                  #eixo x 
+valores = list(Betas.values())                                #eixo y
 
-# ### Plotando
+### Plotando
 
-# bars = plt.bar(colunas,valores)
-# plt.title('Beta URA x IA & Techs')
-# plt.tick_params(axis='x', colors='black')
-# plt.tick_params(axis='y', colors='black')
-# for bar in bars:
-#     yval = bar.get_height()
-#     plt.text(bar.get_x() + bar.get_width()/2, yval, round(yval, 2), ha='center', va='bottom')
-# plt.tight_layout()
-# plt.savefig('Beta URA x IA & Techs')    
+bars = plt.bar(colunas,valores)
+plt.title('Beta URA x IA & Techs')
+plt.tick_params(axis='x', colors='black')
+plt.tick_params(axis='y', colors='black')
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval, round(yval, 2), ha='center', va='bottom')
+plt.tight_layout()
+plt.savefig('Beta URA x IA & Techs')    
 
-# plt.show()
+plt.show()
 
 ### Betas: URA tem sensibilidade muito próxima de 1 para os ETFs ROBO (1.16) e AIQ (0.97) apontando para uma similiaridade na grandeza de seus movimetnos. 
 ### Para os outros ETFs o URA tende a se mexer mais passivamente a eles, faz sentindo visto a volatilidade dos ativos de IA e Tech tem tido recentemente.

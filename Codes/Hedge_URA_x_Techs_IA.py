@@ -1,8 +1,8 @@
 '''
 Contexto:
 Tese bull Urânio explorando assimetria entre oferta e demanda, descarbonização dos países e desetigmatização com energia nuclear. 
-Percebendo uma forte movimento das commodities energéticas sendo puxado pelo setor de Tech e IA, é possível associar um risco indesejado a tese de Urânio.
-Com intuito de mitigar esse risco, surge a ideia de se hedgear estratégicamente, de forma que evite um exposição short constante as Techs e IAs.
+Percebendo uma forte movimento das commodities energéticas sendo puxado pelo setor de Tech e IA, é possível associar um risco indesejado a tese de Urânio. 
+Com intuito de mitigar esse risco, surge a ideia de se hedgear estratégicamente, de forma que evite um exposição short constante as Techs e IAs. ### https://valor.globo.com/empresas/esg/artigo/inteligencia-artificial-ameaca-ou-aliada-na-crise-climatica.ghtml https://exame.com/inteligencia-artificial/chatgpt-consome-17-mil-vezes-mais-eletricidade-do-que-a-media-das-casas-nos-eua/
 
 Cálculos e estudos 
 
@@ -195,8 +195,9 @@ def backtest(ativomain = 'URA',ativohedge = 'XLK' ,beta=1,pontamain = 'C', ponta
         retorno[[ativomain,ativohedge,'Estratégia']]
     
     return retorno
-# print(backtest(ativohedge='ARKG',começo='2020-03-25',stopgain=0.03,stoploss=-0.03).head(15))
-# sys.exit()
+
+
+
 ############################################################ EXERCICIO 1 ############################################################
 ############################################################  CORRELAÇÃO ############################################################
 
@@ -222,10 +223,10 @@ plt.tight_layout()
 plt.savefig('Correlação Histórica')
 plt.show()
 
-## NVDA mostrou mais momentos de descorrelção nas janelas móveis e no geral (0.39 NLR e 0.41), coerente por não ser um ETF e ter variações especificas da própria empresa. Vale ressalatar que não chega a ser correlação baixa
-## Robo Global Robotics and Automation Index ETF (ROBO): Demonstrou a maior correlação entre todos (0.59 com URA e 0.64 com NLR) e menor período de descorrelação em 2017-2018 , 
-## Global X Artificial Intelligence & Technology ETF (AIQ): Apresentou correlação levemente mais fraca do que a do ROBO (0.54), porém parece ser o ativo mais condizente para a estratégia por ser de IA
-## URA X NLR o NLR se mostra mais correlacionado com os ativos de tech e IA que o URA ; Deve ocorrer pela distribuição mais concentrada em emrpesas de enrgia 
+# NVDA mostrou mais momentos de descorrelção nas janelas móveis e no geral (0.39 NLR e 0.41), coerente por não ser um ETF e ter variações especificas da própria empresa. Vale ressalatar que não chega a ser uma correlação baixa
+# Robo Global Robotics and Automation Index ETF (ROBO): Demonstrou a maior correlação entre todos (0.59 com URA e 0.64 com NLR) e menor período de descorrelação em 2017-2018 ; 
+# Global X Artificial Intelligence & Technology ETF (AIQ): Apresentou correlação levemente mais baixa do que a do ROBO (0.54) ;
+# URA X NLR o NLR se mostra mais correlacionado com os ativos de tech e IA que o URA ; Deve ocorrer pela distribuição mais concentrada em emrpesas de enrgia 
 
 ############################################################ Final do Exercicio 1 ############################################################
 
@@ -263,46 +264,65 @@ plt.show()
 ### Betas: URA tem sensibilidade muito próxima de 1 para os ETFs ROBO (1.16) e AIQ (0.97) apontando para uma similiaridade na grandeza de seus movimetnos. 
 ### Para os outros ETFs o URA tende a se mexer mais passivamente a eles, faz sentindo visto a volatilidade dos ativos de IA e Tech tem tido recentemente.
 
-############################################################ Final do Exercicio 2 ############################################################
+############################################################ Final do Exercicio 2 ##################################################
 
-############################################################      EXERCICIO 3     ############################################################
-############################################################    Time de entrada   ############################################################
+############################################################     EXERCICIO 3    ####################################################
+############################################################    Time de entrada ####################################################
 
 ### Inputs importantes para o back teste
 
-começo = '2023-01-01'       ### começo da busca por momentos de entrada
+começo = '2020-01-01'       ### começo da busca por momentos de entrada
 tiporetorno ='diario'       ### Tipo de retorno ; na formula de retorno ele so aborda o retorno em janelas moveis se for diario
 diasvar = 5                 ### retorno móvel em quantas dias
 diasvarbeta = 1             ### o retorno móvel do Beta deve ser diferente, pois acompanharemos o retorno depois de entrar no trade diariamente.
-retorno_trigger = 10/100    ### retorno que ativara o trigger para entrar no hedge de Tech ou IA
-
 list_retorno = ['URA','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK','NVDA'] ### ativos no geral ; usado mais tarde para o Beta
-list_flag = ['ROBO','ARKG' , 'ROBO' , 'AIQ', 'IGV','XLK']#,'NVDA'] ### ativos que irão disparar trigger do Hedge e serão usados como hedges
+list_flag =    [      'ARKG' , 'ROBO', 'AIQ', 'IGV','XLK','NVDA'] ### ativos que irão disparar trigger do Hedge e serão usados como hedges
 
 returns = retorno(ativos = list_retorno,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno) ### Retorno para Beta
 flag = retorno(ativos = list_flag,dias_var = diasvar, começo = começo, fim = dt.datetime.today() ,tipo = tiporetorno) # retorno dos ativos triggers
 
+STDEV_ativos = (returns.std()).to_frame('Volatilidade (Intervalos de 5 Dias)') ### Volatilidade em intervalos de 5 dias
+for vol in range(2,4):          ### Calcular 2 e 3 Desvíos padrões para os ativos                
+    STDEV_ativos[f'{vol} Stdv'] = STDEV_ativos['Volatilidade (Intervalos de 5 Dias)'] * (vol)               ### std*2 e 3
+    for ativo in STDEV_ativos.index:            ### Calcular a probabilidade de ocorrer esse 2 e 3 desvios padrões
+        STDEV_ativos.loc[ativo,f'Prob STDEV {vol}'] = (len(returns[ativo][returns[ativo]>=STDEV_ativos.loc[ativo,f'{vol} Stdv']])/len(returns[ativo])) ### ocorrência de retornos >= x*standard deviation/Amostra
+
+retorno_trigger = STDEV_ativos['3 Stdv']    ### Se o ativo alcançar em x dias 3stdv (para x dias) o trigger será ativado 
 flagtrigger =pd.DataFrame() ### DataFrame para os ativos/datas que serão triggados
-
 for ativo in flag:
-    flag[f'Trigger {ativo}'] = flag[ativo]>= retorno_trigger ### Colunas pra trigar ponta de entrada do Hedge 
-
+    flag[f'Trigger {ativo}'] = flag[ativo]>= retorno_trigger[ativo] ### Colunas pra trigar ponta de entrada do Hedge 
 for name in flag.columns:
     if name.startswith('Trigger'):
         nametrigger = name.split(" ")[-1] # Nome das colunas original
         flagtrigger[f'{nametrigger}']=flag[f'{name}'] # nome dos ativos, mas com as flags de entrada nas linhas (True and False)
     else:
         pass
-    
 flagtrigger  = flagtrigger[flagtrigger.any(axis=1)]    # Filtrando os Trues das colunas triggers e pegando só as datas (index) ; usar futuramente para serem os pontos de entrada
 datastrigger = {}
 for ativo in list_flag:
     datastrigger[ativo] = list(flagtrigger[flagtrigger[ativo] == True].index) ### keys and values para triggar back test ; nome de um ativo corresponde a x datas
 
-for chave in datastrigger: ### para ativo no dict de ativo: datas
-    for valor in datastrigger[chave]: ### para datas de trigger do determinado ativo
-        valor = pd.to_datetime(valor).strftime('%Y-%m-%d') ### formatando a data
+###################################################################### Final do Exercicio 3 ###########################################
 
+
+###################################################################### EXERCICIO 4 ####################################################
+######################################################################   Backtest  ####################################################
+
+Estratégia_URA = pd.DataFrame()
+for chave in datastrigger: ### para ativo no dict de {ativo: datas}
+    for valor in datastrigger[chave]: ### para "datas" trigger do determinado ativo
+
+        valor = pd.to_datetime(valor).strftime('%Y-%m-%d') ### formatando a data
+        Estratégia_URA.loc[f'Hedge {chave} {valor}','Estratégia x URA'] = backtest(ativomain = 'URA',ativohedge = chave ,
+            beta= Beta(df = returns,ativo1='URA',ativo2=chave), ### usando o beta para ponderar a exposição ao ativo hedge
+            pontamain = 'C', pontahedge = 'V',                  ### Ponta do Hedge
+            exposição=1,stopgain=0.03,stoploss= -0.03 ,começo = valor, ### atenção para o stop gain e loss, eles que são os trigerres para sair da posição
+            fim =dt.datetime.today(), tipo = 'acumulado')['URA'][-1] - backtest(ativomain = 'URA',ativohedge = chave ,
+            beta= Beta(df = returns,ativo1='URA',ativo2=chave), ### usando o beta para ponderar a exposição ao ativo hedge
+            pontamain = 'C', pontahedge = 'V',                  ### Ponta do Hedge
+            exposição=1,stopgain=0.03,stoploss= -0.03 ,começo = valor, ### atenção para o stop gain e loss, eles que são os trigerres para sair da posição
+            fim =dt.datetime.today(), tipo = 'acumulado')['Estratégia'][-1] ### Pegando o resultado do final da operação
+        
         chart(
             
             backtest(ativomain = 'URA',ativohedge = chave ,
@@ -311,20 +331,51 @@ for chave in datastrigger: ### para ativo no dict de ativo: datas
             exposição=1,stopgain=0.03,stoploss= -0.03 ,começo = valor, ### atenção para o stop gain e loss, eles que são os trigerres para sair da posição
             fim =dt.datetime.today(), tipo = 'acumulado')
             
-            ,maxy=0.05,miny=-0.05,linha=0,Titulo=f'Buy_URA x short_{chave}_{valor}',arquivoname=f'Buy_URA x short_{chave}_{valor}',show=False)
+            ,maxy=0.05,miny=-0.05,linha=0,xlabeltext='Date',ylabeltext='Return',Titulo=f'Buy_URA x short_{chave}_{valor}',arquivoname=f'/Users/GuidoImpactus/Documents/GitHub/Uranium_study/Charts/Atualizado com Vol/Buy_URA x short_{chave}_{valor}',show=False)
         
-        ### Para stopar/rodar livre o código descomente/comente a parte a seguir: 
+        # Para stopar/rodar livre o código descomente/comente a parte a seguir: 
         stop_looping = input('Type S for stop de Looping:')
         print(input,'\n')
         if stop_looping.upper() == 'S':
             sys.exit()
         else:
-            pass
+            pass    
 
-### Com o trigger de alta de 10% muitas vezes entramos no meio de uma bull trend dos ativos de techs e IA que tiveram grandes rallys nos ultimos 4 anos.
-### Futuramente adicionar o trigger por alguma razão da volatilidade do ativohedge
-        
-# 
-# OBS       chart(flag,maxy=0.25,miny=-0.1,linha=0.05,ylabeltext='Retorno a cada 5 dias',Titulo='Retorno em janela móvel de 5 dias') #plotando retornos acumulados de 5 dias    
+M_result = Estratégia_URA['Estratégia x URA'].mean()
+biggerthenz = len(Estratégia_URA['Estratégia x URA'][Estratégia_URA['Estratégia x URA']>0])
+smallerthenz = len(Estratégia_URA['Estratégia x URA'][Estratégia_URA['Estratégia x URA']<0])
 
+print('Média (Estratégia - URA): ',M_result,'\n',
+       'Resultados >0: ',biggerthenz,'\n',
+       'Resultados <0: ',smallerthenz)
 
+############################################################ Final do Exercicio 4 ############################################################
+########################################################### Resultados da estratégia ############################################################
+
+### Resultados > 2024
+
+'''
+Média (Estratégia - URA):  0.009352064416444369 
+ Resultados >0:  2 
+ Resultados <0:  1'''
+
+### Resultados > 2022
+
+'''
+ Média (Estratégia - URA):  0.0007797070867773507 
+ Resultados >0:  7 
+ Resultados <0:  7'''
+
+### Resultados > 2020
+
+'''
+ Média (Estratégia - URA):  -0.005016171647008854 
+ Resultados >0:  14 
+ Resultados <0:  17'''
+
+### Resultados > 2011
+
+'''
+ Média (Estratégia - URA):  -0.002487100453724007 
+ Resultados >0:  21 
+ Resultados <0:  23'''
